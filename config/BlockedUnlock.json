@@ -3,6 +3,6 @@
         "base/General",
         "base/Reflexion",
         "base/BlockedUnlockPickup",
-        "base/Llama3.1-70B"
+        "base/Llama3.1-8B"
     ]
 }

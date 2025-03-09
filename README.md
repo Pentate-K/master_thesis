@@ -26,7 +26,9 @@ huggingface-cli login
 ```
 Enter your token (input will not be visible): トークンをペースト
 ```
-モデルによってはHuggingFaceにてアクセスに関する登録をしなければならないので注意
+モデルによってはHuggingFaceにてアクセスに関する登録をしなければならないので注意.
+
+初期設定では"meta-llama/Meta-Llama-3.1-8B-Instruct"を使用.
 
 ## 実験設定の変更方法
 main.pyを実行する際, excuted_configs.py内に記述された設定ファイルに基づいて実行される.
@@ -85,7 +87,6 @@ result/実験環境名/ポリシー名/実行日時_config名/
 ├── config # 実験設定ファイル
 ├── gym_minigrid # gym_minigridライブラリをマルチエージェントに改変したもの
 ├── logger # ログの保存などの処理
-├── result # 結果を保存する場所
 ├── utils # 学習や環境に関する細かい処理のコード
 ├── arial.ttf # 結果出力に使うフォント(上手いことやればなくてもできるはず)
 ├── ENV.py # OpenAIのキーなどを書くところ gitignore推奨
