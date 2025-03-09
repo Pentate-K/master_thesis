@@ -19,16 +19,16 @@ conda actiavte multi_babyai
 python main.py 
 ```
 
-※LLMのモデルをHuggingFaceから取ってきている場合は実行前にログインしておく
+※LLMをHuggingFaceから取ってきている場合は実行前にログインしておく
 ```
 huggingface-cli login
 ```
 ```
 Enter your token (input will not be visible): トークンをペースト
 ```
-モデルによってはHuggingFaceにてアクセスに関する登録をしなければならないので注意.
+モデルによってはHuggingFaceにてアクセスに関する登録をしなければならないので注意
 
-初期設定では"meta-llama/Meta-Llama-3.1-8B-Instruct"を使用.
+初期設定では"meta-llama/Meta-Llama-3.1-8B-Instruct"を使用
 
 ## 実験設定の変更方法
 main.pyを実行する際, excuted_configs.py内に記述された設定ファイルに基づいて実行される.
