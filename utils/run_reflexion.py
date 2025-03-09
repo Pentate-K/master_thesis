@@ -8,6 +8,9 @@ import utils.utils as utils
 import logger.logger as logger
 from babyai.levels import *
 
+# Reflexionを個別で実行する
+# main_restart.pyから呼ばれる
+
 def run_reflexion(directory:str, trial:int, is_rewrite:bool):
     with open(f'{directory}/config.json') as f:
         config = json.load(f)

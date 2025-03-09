@@ -1,5 +1,5 @@
 {
-    "policy_option":{
+    "hyperparam":{
         "llm_high_model" : "gpt-4o"
     }
 }

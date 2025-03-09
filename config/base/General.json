@@ -1,10 +1,7 @@
 {
     "hyperparam": {
         "agent_num" : 2,
-        "realtime_rendering" : true
-    },
-
-    "policy_option":{
+        "realtime_rendering" : true,
         "free_mode" : false,
         "sight_include_agents": true,
         "is_use_consideration" : true,

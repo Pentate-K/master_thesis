@@ -8,16 +8,22 @@ import utils.utils as utils
 from utils.llm_utils import LLM
 from utils.run_reflexion import main as run_reflexion
 
+# 途中で終了した実験をエピソード単位で再実行する
+# フォルダ名と再開エピソード番号などを直接指定する
+
 def main(directory:str, trial:int=-1, is_run_reflexion:bool=False):
+    # 実験で使用したconfigを読み込む
     path = utils.search_directory_path(directory)    
     if path is None: return
     with open(f'{path}/config.json') as f:
         config = json.load(f)
 
-    LLM.load(config) # 先にLLMをロードしておく
+    # LLMをロード
+    LLM.load(config)
     if utils.get_value(config, "is_use_embedding_model", False):
         Embedder.load(config)
-        
+    
+    # 環境などの初期化
     config_name = config["config_name"]
     logger = Logger(path, config_name, False)
 
@@ -38,7 +44,7 @@ def main(directory:str, trial:int=-1, is_run_reflexion:bool=False):
         else:
             trial = 0
 
-    # メモリーの読み込み
+    # Reflexionメモリーの読み込み
     if trial >= 1:
         pre_trial = trial-1
         if is_run_reflexion:
@@ -49,6 +55,7 @@ def main(directory:str, trial:int=-1, is_run_reflexion:bool=False):
         for i in range(env.agent_num):
             reflexion.memories[i].set_dict(pre_log["memory"][i])
 
+    # 実行
     run(logger, reflexion, trial, config)
 
 # 処理を再開する

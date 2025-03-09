@@ -20,7 +20,10 @@ from transformers import (
 import numpy as np
 import torch
 import ENV
-from logger.logger import output_token_count
+
+# LLMに関する(比較的)Lowレベルな設定を行う
+# "プロンプトを投げたら出力文が返ってくる" を実現するためのクラス
+# この実験以外でもLLMを手軽に使えるかも
 
 # 初期化とテキスト生成の機能を持ったLLM
 class LLM:
@@ -30,6 +33,7 @@ class LLM:
 
     image_token:str = ""
 
+    # モデル名から各インスタンスを生成
     @staticmethod
     def __make(model_name) -> 'LLM':
         if "llama" in model_name:
@@ -47,6 +51,7 @@ class LLM:
             llm_instance = LLM("free")
         return llm_instance
     
+    # モデルの読み込み
     @classmethod
     def load(cls, params):
         is_free_mode = utils.get_value(params, "free_mode", False)
@@ -71,14 +76,17 @@ class LLM:
             return llm._generate_text_with_vision(prompt, image)
         return llm._generate_text(prompt)
 
+    # 出力
     @classmethod
     def generate(cls, prompt:str, image = None) -> str:
         return cls.__generate(cls.__llm, prompt, image)
 
+    # 高位のモデルで出力
     @classmethod
     def generate_high(cls, prompt:str, image = None) -> str:
         return cls.__generate(cls.__llm_high, prompt, image)
 
+    # 潜在表現を取得
     @classmethod
     def get_internal_representation(cls, text:str):
         return cls.__llm._generate_internal_representation(text)
@@ -282,24 +290,6 @@ class Gpt(LLM):
             ]
         }]
 
-    def _token_checker(self, input, output):
-        input_token_len = self._calc_token(input)
-        output_token_len = self._calc_token(output)
-        self.input_token += input_token_len
-        self.output_token += output_token_len
-        output_token_count(input_token_len, output_token_len)
-
-        cost = self.input_token / 1000000 * 0.15 + self.output_token / 1000000 * 0.6
-        if cost > 0.45:
-            print(f"input:{self.input_token}")
-            print(f"output:{self.output_token}")
-            print(f"cost:{cost}")
-            import sys
-            a = 1
-            b = a[1]
-            print(b)
-            sys.exit()
-
     def _call_api(self, prompt, image = None):
         messages = self._prompt_format(prompt, image)
         response = self.client.chat.completions.create(
@@ -308,13 +298,7 @@ class Gpt(LLM):
         )
         text = response.choices[0].message.content
 
-        self._token_checker(prompt, text)
-        return text, {}        
-
-    def _calc_token(self, text):
-        encoding = tiktoken.get_encoding(self.encoding.name)
-        num_tokens = len(encoding.encode(text))
-        return num_tokens
+        return text, {}
 
     def _generate_text(self, prompt):
         return self._call_api(prompt)

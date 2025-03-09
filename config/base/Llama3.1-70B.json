@@ -1,5 +1,5 @@
 {
-    "policy_option":{
+    "hyperparam":{
         "llm_model" : "meta-llama/Meta-Llama-3.1-70B-Instruct",
         "is_use_vision" : false
     }

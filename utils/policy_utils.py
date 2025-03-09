@@ -5,6 +5,9 @@ from utils.llm_utils import LLM
 import utils.utils as utils
 from utils.embedding_utils import Embedder
 
+# 方策に関する細かい処理
+# policy.pyから呼び出される
+
 # LLMで行動を決定する
 def act_by_llm(env:gym.Env, reflexion:Reflexion, pre_info:dict, params:dict={}) -> list[int]:
     info = {
@@ -35,6 +38,7 @@ def act_by_llm(env:gym.Env, reflexion:Reflexion, pre_info:dict, params:dict={}) 
     utils.dict_of_lists_extend(pre_info, info)
     return actions
 
+# 階層的なサブゴールから行動を決定する
 def act_by_hierarchical_subgoal(env:gym.Env, reflexion:Reflexion, pre_info:dict, params:dict={}) -> list[int]:
     info = {
         "queries":[],
@@ -136,7 +140,7 @@ def act_by_hierarchical_subgoal(env:gym.Env, reflexion:Reflexion, pre_info:dict,
     utils.dict_of_lists_extend(pre_info, info)
     return actions
 
-# LLMで現在の状況について考えさせる
+# LLMで現在の状況について考えさせる(Chain of Thought)
 def consideration(env:gym.Env, reflexion:Reflexion, pre_info:dict, params:dict={}):
     if not utils.get_value(params, "is_use_consideration", False): return
 
@@ -164,7 +168,7 @@ def consideration(env:gym.Env, reflexion:Reflexion, pre_info:dict, params:dict={
 
     utils.dict_of_lists_extend(pre_info, info)
 
-# エージェント間のメッセージ交換
+# エージェント間のメッセージ交換を行う
 def message(env:gym.Env, reflexion:Reflexion, pre_info:dict, params:dict={}):
     info = {
         "queries":[],
@@ -191,7 +195,7 @@ def message(env:gym.Env, reflexion:Reflexion, pre_info:dict, params:dict={}):
             info["messages"].append(text)
     utils.dict_of_lists_extend(pre_info, info)
 
-# エージェント間の対話
+# エージェント間の対話を行う
 def conversation(env:gym.Env, reflexion:Reflexion, pre_info:dict, params:dict={}):
     info = {
         "queries":[],
@@ -229,6 +233,7 @@ def conversation(env:gym.Env, reflexion:Reflexion, pre_info:dict, params:dict={}
 
     utils.dict_of_lists_extend(pre_info, info)
 
+# 各サブゴールを達成したかの判定を行う
 def judge_subgoal_achievement(env:gym.Env, reflexion:Reflexion, pre_info:dict, is_clear:bool, params:dict={}):
     if env.now_step <= 0: return
     info = {
@@ -247,17 +252,6 @@ def judge_subgoal_achievement(env:gym.Env, reflexion:Reflexion, pre_info:dict, i
             is_achieved[-1] = True
             log_outputs[-1] = "Yes"
 
-        # 一括で判定したかった(精度が悪い)        
-        # prompt = reflexion.get_all_subgoals_achieved_prompt(agent_id, subgoals, params)
-        # judge, _ = LLM.generate(prompt, imgs[agent_id])
-        # if judge[0] != '[':
-        #     judge = '[' + judge
-        # if judge[-1] != ']':
-        #     judge = judge + ']'
-        # judge_list = utils.text_to_str_list(judge)
-        # judge_failed = len(judge_list) != len(subgoals)
-        # info["queries"].append(prompt)
-        # info["achieved"].append(judge)
         judge_failed = True
 
         if judge_failed:
@@ -267,10 +261,6 @@ def judge_subgoal_achievement(env:gym.Env, reflexion:Reflexion, pre_info:dict, i
                 is_achieved[i] = "yes" in judge.lower()
                 log_outputs[i] = judge
                 info["queries"].append(prompt)
-        # else:
-        #     for i in range(len(subgoals)-1):
-        #         is_achieved[i] = "yes" in judge_list[i].lower()
-        #         log_outputs[i] = judge_list[i]
 
         log_achieved = [(subgoals[i], log_outputs[i]) for i in range(len(subgoals))]
         info["achieved"].append(log_achieved)

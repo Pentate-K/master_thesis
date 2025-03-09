@@ -6,6 +6,8 @@ from PIL import Image, ImageDraw, ImageFont
 import utils.utils as utils
 from utils.reflexion_utils import SubgoalTree
 
+# SubgoalTreeを可視化する処理
+
 def save_image(directory_path:str, trial:int, image:Image.Image):
     image_dir_path = f"{directory_path}/subgoal_tree"
     if not os.path.exists(image_dir_path):
@@ -117,6 +119,7 @@ def main(directory_name:str, trials:list[int]):
         save_image(directory_path, trial, image)
     return
 
+# 個別で実行する
 if __name__ == "__main__":
     directory_name = "20241202202051_Debug"
     trials = [1]#list(range(100))

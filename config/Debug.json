@@ -11,10 +11,7 @@
         "agent_num" : 2,
         "reflexion_type" : "none",
         "is_use_fixed_init_subgoal" : false,
-        "trial_count" : 100
-    },
-
-    "policy_option":{
+        "trial_count" : 100,
         "free_mode" : false,
         "is_use_consideration" : true,
         "history_size" : 7,

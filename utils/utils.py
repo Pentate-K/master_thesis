@@ -5,6 +5,9 @@ import numpy as np
 import glob
 import re
 
+# 雑多な処理
+
+# オブジェクトをJsonに変換するための親クラス
 class Jsonable:
     def get_dict(self) -> dict:
         return vars(self)

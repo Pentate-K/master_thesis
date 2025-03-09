@@ -1,3 +1,6 @@
+# BabyAIのObservationをテキストに変換する処理
+# その他, 環境の何らかの情報を取得する機能
+
 from gym_minigrid.minigrid import (
     IDX_TO_OBJECT,
     IDX_TO_COLOR,
@@ -10,7 +13,8 @@ DIRECTIONS_STR = ["east", "south", "west", "north"]
 def get_agent_name(agent_id:int):
     return f"agent{agent_id}" if agent_id >= 0 else ""
 
-def object_to_text(obj):
+# オブジェクト情報をテキストに変換
+def object_to_text(obj:tuple[int, int, int]) -> str:
     id, color_id, state = obj 
     name = IDX_TO_OBJECT[id]
     color = IDX_TO_COLOR[color_id]
@@ -26,7 +30,8 @@ def object_to_text(obj):
         result = f"{color} {name}"
     return result
 
-def local_to_world_pos(pos, dir, pivot) -> tuple[int,int]:
+# エージェントから見た相対的な位置や方向などからワールド座標を出力
+def local_to_world_pos(pos:tuple[int, int], dir:int, pivot:tuple[int,int]) -> tuple[int,int]:
     if dir == 0: # east
         pos = (pos[1], -pos[0])
     elif dir == 1: # south
@@ -37,31 +42,35 @@ def local_to_world_pos(pos, dir, pivot) -> tuple[int,int]:
         pos = (-pos[0], -pos[1])
     return (pos[0]+pivot[0], pos[1]+pivot[1])
 
-def local_to_obj(obs, pos):
+# エージェントから見た相対的な位置のオブジェクトを取得
+def local_to_obj(obs, pos:tuple[int,int]) -> tuple[int, int, int]:
     grid = obs["image"]
     height, width = grid.shape[0:2]
     x, y = (width // 2 - pos[0], height - pos[1] - 1)
     obj_id, color_id, state_id = grid[x][y]
     return obj_id, color_id, state_id
 
-# 観測をテキストに変換する処理
-def obs_to_str_baby(env, observations, params:dict={}) -> list:
+# 全エージェントの観測をテキストに変換する処理
+def obs_to_str_baby(env, observations, params:dict={}) -> list[tuple[str, str]]:
     
-    def object_to_detail_text(obj, params):
+    # オブジェクトをテキストに変換
+    def object_to_detail_text(obj:tuple[int,int,int], params:dict={}) -> str:
         if obj[0] >= 10:
             result = get_agent_info_str(obj[0] - 10)
         else:
             result = object_to_text(obj)
         return result
 
-    def get_agent_info_str(target_id:str):
+    # 他エージェントの情報をテキストに変換
+    def get_agent_info_str(target_id:str) -> str:
         target_name = get_agent_name(target_id)
         direction = observations[target_id]["direction"]
         direction_str = DIRECTIONS_STR[direction]
         result = f"{target_name} facing {direction_str}"
         return result
 
-    def one_agent(obs, agent_id):
+    # 特定のエージェントに関して状態をテキスト化する
+    def one_agent(obs, agent_id) -> tuple[str, str]:
         grid = obs["image"]
         height, width = grid.shape[0:2]
 
@@ -115,17 +124,10 @@ def obs_to_str_baby(env, observations, params:dict={}) -> list:
         right_pos = local_to_world_pos((-1, 0), self_dir, self_pos)
         left_pos = local_to_world_pos((1, 0), self_dir, self_pos)
 
-        self_dir_str = DIRECTIONS_STR[self_dir]
         forward_dir = DIRECTIONS_STR[self_dir]
-        right_dir = DIRECTIONS_STR[(self_dir+1)%len(DIRECTIONS_STR)]
-        left_dir = DIRECTIONS_STR[self_dir-1]
-        #mission = obs['mission']
 
         sentences = []
 
-        # sentences.append(f'Your forward is coordinate {forward_pos}, which is {forward_dir}, there is {forward_obj_name}.') # 正面
-        # sentences.append(f'Your right is cooridnate {right_pos}, which is {right_dir}, there is {right_obj_name}.') # 右
-        # sentences.append(f'Your left is coordinate {left_pos}, which is {left_dir}, there is {left_obj_name}.') # 左
         sentences.append(f'Your forward is coordinate {forward_pos}, there is {forward_obj_name}.') # 正面
         sentences.append(f'Your right is cooridnate {right_pos}, there is {right_obj_name}.') # 右
         sentences.append(f'Your left is coordinate {left_pos}, there is {left_obj_name}.') # 左
@@ -138,14 +140,14 @@ def obs_to_str_baby(env, observations, params:dict={}) -> list:
         sentences.append(f"There is a passable floor in the area.") # 通行可能であることを説明
         sentences.extend(obj_texts) # 視界にあるオブジェクト
         sentences.extend(agent_texts) # 他エージェントの位置情報
-        #sentences.append(f"There is {forward_obj_name} in your forward coordinate {forward_pos}.") # 目の前のオブジェクト
-        #sentences.append(f"There is {right_obj_name} in your right coordinate {right_pos}.") # 右のオブジェクト
-        #sentences.append(f"There is {left_obj_name} in your left coordinate {left_pos}.") # 左のオブジェクト
         absolute = utils.join_sentences(sentences)
+
+        # 相対的な観測と絶対的な観測に分けて返す
         return (relative, absolute)
 
     return [one_agent(obs, agent_id) for agent_id, obs in enumerate(observations)]
 
+# 簡易的な観測をテキストで取得
 def world_to_str_baby(env, is_add_position:bool, params:dict={}) -> str:
     grid = env.grid.encode()
     width = env.width
@@ -163,10 +165,10 @@ def world_to_str_baby(env, is_add_position:bool, params:dict={}) -> str:
             obj_texts.append(obj_text)
     return " ".join(obj_texts)
 
-
+# 全エージェントの行動の結果をテキストで出力
 def get_feedbacks(env, observations, actions:list[int], params:dict={}):
-
-    def one_agent(agent_id) -> str:
+    # 特定のエージェントに関してテキスト化
+    def one_agent(agent_id:int) -> str:
         observation = observations[agent_id]
         action = actions[agent_id]
         forward_obj = local_to_obj(observation, (0, 1))
@@ -177,30 +179,31 @@ def get_feedbacks(env, observations, actions:list[int], params:dict={}):
         carrying_id, carrying_color, _ = carrying_obj
         carrying_name = object_to_text(carrying_obj)
         is_carrying = carrying_id in (5, 6, 7)
-        if action == 0:
+
+        if action == 0: # 左を向く
             return "You turned left."
-        elif action == 1:
+        elif action == 1: # 右を向く
             return "You turned right."
-        elif action == 2:
+        elif action == 2: # 前進
             if is_forward_empty:
                 return "You took a step forward."
             else:
                 return "You couldn't took a step forward because there is an object in your forward coordinate."
-        elif action == 3:
+        elif action == 3: # pick up
             if forward_id not in (5, 6, 7):
                 return f"You failed to picked up because there is no item in your forward coordinate."                
             if is_carrying:
                 return f"You failed to picked up because you already have other item."
             else:
                 return f"You picked up {forward_name}."
-        elif action == 4:
+        elif action == 4: # drop
             if is_carrying and is_forward_empty:
                 return f"You dropped {carrying_name}."
             elif is_forward_empty:
                 return f"You failed to drop item because you have no item."
             else:
                 return f"You failed to drop item because there is an object in your forward coordinate."
-        elif action == 5:
+        elif action == 5: # toggle
             if forward_id == 4 and forward_state == 1:
                 return f"You opened {forward_name}."
             elif forward_id == 4 and forward_state == 2 and carrying_id == 5 and forward_color == carrying_color:

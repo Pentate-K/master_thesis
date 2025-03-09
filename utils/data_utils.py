@@ -29,13 +29,14 @@ class History(utils.Jsonable):
         self.indexes = {}
 
     # 履歴から特定ラベルの内容を消去
-    def remove(self, label) -> None:
+    def remove(self, label:str) -> None:
         self.history = [h for h in self.history if h['label'] != label]
 
     def __str__(self) -> str:
         return self.get_str()
 
-    def get_str(self, length=-1, select=[], counts={}):
+    # 必要な情報を選択して履歴を取得
+    def get_str(self, length:int=-1, select:list[str]=[], counts:dict[str,int]={}) -> str:
         contents: list[str] = []
         contents.append(self.base_query)
         contents.append("")
@@ -85,6 +86,24 @@ class History(utils.Jsonable):
         
         return "\n".join(contents)
     
+# Reflexion用の記憶
+class Memory(utils.Jsonable):
+    def __init__(self, memory_size:int):
+        super().__init__()
+        self.size = memory_size
+        self.contents:list[str] = []
+        self.trim_memory()
+
+    # 反省文を追加
+    def add_memory(self, content:str):
+        self.contents.append(content)
+        self.trim_memory()
+
+    # はみ出た反省文を消去
+    def trim_memory(self):
+        if len(self.contents) > self.size:
+            self.contents = self.contents[-self.size:]
+
 # サブゴールを木構造で保持するクラス
 class SubgoalTree(utils.Jsonable):
     def __init__(self, root_content:str=""):
@@ -327,18 +346,3 @@ class SubgoalTree(utils.Jsonable):
                 self.halfway_node = self.childrens[node][-1]
                 break
         print(self.halfway_node)
-
-class Memory(utils.Jsonable):
-    def __init__(self, memory_size:int):
-        super().__init__()
-        self.size = memory_size
-        self.contents:list[str] = []
-        self.trim_memory()
-
-    def add_memory(self, content:str):
-        self.contents.append(content)
-        self.trim_memory()
-
-    def trim_memory(self):
-        if len(self.contents) > self.size:
-            self.contents = self.contents[-self.size:]

@@ -7,8 +7,9 @@ from datetime import datetime
 # 使うと嫌われます
 
 # user settings
-require = 42 #GB
-cmd = "python main.py"
+require = 42 # 指定GPUメモリ容量(GB)
+cmd = "python main.py" # 実行したいコマンド
+check_interval = 15 # GPUの状態を監視する間隔(s) 
 # ------------
 
 DEFAULT_ATTRIBUTES = (
@@ -40,4 +41,4 @@ while True:
         print(str(datetime.now()) + " get memory", flush=True)
         subprocess.check_output(cmd, shell=True)
         break
-    time.sleep(15) # 15秒に一度チェック
+    time.sleep(check_interval)

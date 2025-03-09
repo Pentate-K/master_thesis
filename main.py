@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 import json
 from tqdm import tqdm
 
-from babyai.levels import * # 各環境を登録するためにimportがが必要
+from babyai.levels import * # BabyAIの各環境を登録するためにimportが必要
 
 import policy
 import utils.policy_utils as policy_utils
@@ -33,18 +33,20 @@ def load_config(config_name:str):
         p = load_config(name)
         params = {**params, **p}
     hyperparams = utils.get_value(config, "hyperparam", {})
-    policy_option = utils.get_value(config, "policy_option", {})
-    params = {**params, **hyperparams, **policy_option}
+    params = {**params, **hyperparams}
     params["config_name"] = config_name
     return params
 
+# 初期化と実行
 def init_and_run(config_name:str):
     config = load_config(config_name)
 
+    # ログの設定
     logger = Logger("./result/" + config["env_name"] + "/" + config["policy_name"], "_" + config["config_name"])
     logger.output("config", config)
 
-    LLM.load(config) # 先にLLMをロードしておく
+    # LLMを読み込み
+    LLM.load(config)
     if utils.get_value(config, "is_use_embedding_model", False):
         Embedder.load(config)
 
@@ -101,7 +103,7 @@ def run(logger:Logger, reflexion:Reflexion, trial_start:int, config:dict):
 
         initialize_subgoal(trial, log_init)
 
-        # 指定ステップ数まで繰り返す
+        # 指定ステップ繰り返す
         for step in tqdm(range(config["max_step"])):
             # 環境の描画
             movie_maker.render()
@@ -126,7 +128,7 @@ def run(logger:Logger, reflexion:Reflexion, trial_start:int, config:dict):
                 reflexion.add_histories("feedback", feedbacks)
             obs, reward, done, _, _ =  env.step(actions)
 
-            # 終了状態と状態の評価を取得
+            # 終了判定と状態の評価を取得
             done, is_success, reason = env_utils.get_achievement_status(reward, done, step, config)
 
             # ログに関する処理
@@ -174,7 +176,7 @@ def run(logger:Logger, reflexion:Reflexion, trial_start:int, config:dict):
         subgoal_visualize(logger.path, [trial])
 
 def main():
-    # 指定した設定ファイルの数だけ連続で実行する
+    # 指定したconfigを連続で実行する
     for config_name in configs:
         init_and_run(config_name)
 

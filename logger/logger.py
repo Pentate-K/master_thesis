@@ -5,6 +5,7 @@ import numpy
 
 from json import JSONEncoder
 
+# numpyオブジェクトをjsonに変換できるようにする
 class NumpyJSONEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, numpy.int64):
@@ -17,20 +18,13 @@ class NumpyJSONEncoder(json.JSONEncoder):
             return list(o)
         return JSONEncoder.default(self, o)
 
+# 簡易的な出力機能
 def output(content, path):
     with open(path, 'w') as f:
         json.dump(content, f, indent=1, cls=NumpyJSONEncoder)
 
-def output_token_count(input:int, output:int):
-    path = "./token_count.json"
-    with open(path) as f:
-        content = list(json.load(f))
-    dt_now = str(datetime.datetime.now())
-    content.append([dt_now, input, output])
-    with open(path, "w") as f:
-        json.dump(content, f, indent=1, cls=NumpyJSONEncoder)
-
 class Logger:
+    # 現在日時を使ってログ用のフォルダを生成
     def __init__(self, path, name = "", is_create = True):
         self.log = []
         self.path = path

@@ -2,12 +2,16 @@ from sentence_transformers import SentenceTransformer, util
 from utils.utils import get_value, extraction_numbers
 from torch import Tensor
 
+# 文章の類似度を求める際に必要な機能
+# SubgoalTreeの手法でのみ用いる
+
 class Embedder:
     is_loaded : bool = False
     __model : SentenceTransformer = None
     __model_name : str = ""
     __cache : dict[str, Tensor] = {}
 
+    # Embedding用のモデルを読み込む
     @classmethod
     def load(cls, config:dict={}):
         model_name = get_value(config, "embedding_model", "paraphrase-MiniLM-L6-v2")
@@ -16,12 +20,13 @@ class Embedder:
         cls.__model_name = model_name
         cls.is_loaded = True
 
+    # 2つのテキストの類似度を求める
     @classmethod
     def get_similarity(cls, text1:str, text2:str) -> float:
         emb1 = cls.__get_embedding(text1)
         emb2 = cls.__get_embedding(text2)
 
-        # 数字が違ったら異なるものとして判定する
+        # 含まれる数字が違ったら異なるものとして判定する(今回は座標の違いなどが大事なので)
         if extraction_numbers(text1) != extraction_numbers(text2):
             return 0
         cosine_score = util.pytorch_cos_sim(emb1, emb2)[0][0]
@@ -35,6 +40,7 @@ class Embedder:
         cls.__cache[text] = embeddings
         return embeddings
 
+# テスト用
 if __name__ == "__main__":
     Embedder.load()
     while True:

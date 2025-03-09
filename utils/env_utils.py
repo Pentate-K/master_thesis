@@ -5,16 +5,20 @@ from utils.utils import get_value
 from utils.llm_utils import LLM
 import utils.utils as utils
 import utils.babyai_utils as babyai_utils
+from utils.data_utils import SubgoalTree
 
 from gym_minigrid.minigrid import (
     IDX_TO_COLOR,
 )
 
-CLIFF = "Cliff"
-BABY = "Baby"
+# 環境の読み込みやテキスト化, プロンプトの定義などを行う
+# その他, 環境に関するいろいろな機能
 
-# 環境を作成する
-def make(params:dict):
+CLIFF = "Cliff" # CliffWalking環境
+BABY = "Baby" # BabyAI環境
+
+# configから環境を作成する
+def make(params:dict) -> gym.Env:
     env_name = params["env_name"]
     if CLIFF in env_name:
         env = gym.make(env_name, render_mode="rgb_array")
@@ -25,7 +29,7 @@ def make(params:dict):
     return env
 
 # エージェントの名前を返す
-def get_agent_name(agent_id:int, params = {}):
+def get_agent_name(agent_id:int, params:dict = {}) -> str:
     env_name = params["env_name"]
     if CLIFF in env_name:
         return f"agent{agent_id}" if agent_id >= 0 else ""
@@ -33,22 +37,23 @@ def get_agent_name(agent_id:int, params = {}):
         return babyai_utils.get_agent_name(agent_id)
 
 # 行動の名前の取得
-def get_actions_str(env_name):
+def get_actions_str(env_name:str) -> list[str]:
     if CLIFF in env_name:
         return ["move north","move east","move south","move west"]
     elif BABY in env_name:
+        # 詳しく書いた方が良い?
         #return ["turn left","turn right","go forward","pick up","drop","open"]
         return ["turn left","turn right","go to the forward coordinate","pick up item that in the forward coordinate","drop carrying item to the forward coordinate","open the door at the forward coordinate"]
 
 # 行動の名前の略称を取得
-def get_brief_actions_str(env_name):
+def get_brief_actions_str(env_name:str) -> list[str]:
     if CLIFF in env_name:
         return ["north","east","south","west"]
     elif BABY in env_name:
         return ["left","right","forward","pick up","drop","open"]
 
 # 行動の名前をカンマ区切りで連結したものを取得(プロンプト用)
-def get_actions_joined_str(env_name, last_word=""):
+def get_actions_joined_str(env_name:str, last_word:str="") -> str:
     actions_str = get_actions_str(env_name)
     actions_str = [f"'{action}'" for action in actions_str]
     if last_word == "" or len(actions_str) <= 1:
@@ -58,7 +63,7 @@ def get_actions_joined_str(env_name, last_word=""):
     return actions_joined
 
 # プロンプトに使用する問題とタスクの説明文を返す
-def get_explain(env, obs, params):
+def get_explain(env:gym.Env, obs, params:dict) -> tuple[str,list[str]]:
     env_name = params["env_name"]
     actions_joined = get_actions_joined_str(env_name, "or")
     action_prompt = f"Each step, You must select actions in {actions_joined}."
@@ -87,7 +92,7 @@ def get_explain(env, obs, params):
 
     return base_prompt, task_prompts
 
-def get_image_explain(agent_id:int, params):
+def get_image_explain(agent_id:int, params:dict) -> str:
     is_use_vision = get_value(params,"is_use_vision",False)
     if not is_use_vision: return ""
 
@@ -101,7 +106,7 @@ def get_image_explain(agent_id:int, params):
     return f"{image_token}"
 
 # 通常のReflexionを行う時のプロンプトに記述する指示文を返す
-def get_general_reflexion_instr(reason:str, agent_id:int, params = {}):
+def get_general_reflexion_instr(reason:str, agent_id:int, params:dict = {}) -> str:
     agent_name = get_agent_name(agent_id, params)
     profile = f"You are {agent_name}. " if params["agent_num"] > 1 else ""
     image_explain = get_image_explain(agent_id, params)
@@ -111,7 +116,7 @@ def get_general_reflexion_instr(reason:str, agent_id:int, params = {}):
     return prompt
 
 # Subgoalに関するReflexionを行う時のプロンプトに記述する指示文を返す
-def get_subgoal_reflexion_instr(reason:str, agent_id:int, subgoal_tree, params = {}):
+def get_subgoal_reflexion_instr(reason:str, agent_id:int, subgoal_tree:SubgoalTree, params:dict = {}) -> str:
     achieved, failed = subgoal_tree.get_all_sequence()
     agent_name = get_agent_name(agent_id, params)
     profile = f"You are {agent_name}. " if params["agent_num"] > 1 else ""
@@ -121,21 +126,18 @@ def get_subgoal_reflexion_instr(reason:str, agent_id:int, subgoal_tree, params =
     prompt += f"You are given the history of a past experience in which you were placed in an environment and given a task to complete. In this trial, you were unsuccessful in completing the task because of {reason}."
     prompt += " " + f"You planned and accomplished the following subgoal list {achieved}."
     prompt += " " + f"However, You were not able to achieve the following subgoal list {failed}."
-    #prompt += " " + f"Do not summarize your environment, but rather think about the subgoal planning strategy to complete the task, considering concretely subgoals that are useful and those that should be improved. You will need this later when you are solving the same task. Output only your plan in 3 to 6 sentences. \nGive your plan:"
-    #prompt += " " + f"Do not summarize your environment, but rather think about the subgoal planning strategy to complete the task, considering concretely subgoals that are useful and those that should be improved. You will need this as your memory 'Trial {next_trial}' later when you are solving the same task. Output without repeating memory of previous trials. \nGive your plan:"
-    #prompt += " " + f"Do not summarize your environment, but rather think about the subgoal planning strategy to complete the task, considering concretely subgoals that are useful and those that should be improved. For each subgoal that was not achieved, consider how it could have been achieved. You will need this later when you are solving the same task. Output only your plan in 3 to 6 sentences. \nGive your plan:"
-    #prompt += " " + f"Do not summarize your environment, but rather think about the subgoal planning strategy to complete the task, considering concretely subgoals that are useful and those that should be improved. For each subgoal that was not achieved, consider how it could have been achieved. You will need this later when you are solving the same task. Output your plan in 3 to 6 sentences and output new subgoal list briefly in the format ['A', 'B', 'C', ...] for achievement the task. \nGive your plan and list:"
     prompt += " " + f"Do not summarize your environment, but rather think about the subgoal planning strategy to complete the task, considering subgoals that are useful and those that should be improved. Output a detailed new plan from the start of the task to its accomplishment in 3 to 6 sentences \nGive only your plan:"
     return prompt
 
-def get_subgoal_reflexion_achievement(subgoal_tree, params={}):
+# Subgoalに関するReflexionを行う時のプロンプトに記述する達成/未達成のサブゴールを返す
+def get_subgoal_reflexion_achievement(subgoal_tree:SubgoalTree, params:dict={}) -> str:
     achieved, failed = subgoal_tree.get_all_sequence()
     result = f"I planned and accomplished the following subgoal list {achieved}, "
     result += f"but was not able to achieve the following subgoal list {failed}."
     return result
 
 # 行動を生成する時のプロンプトに記述する指示文を返す
-def get_action_instr(env_name:str, agent_id:int, params = {}):
+def get_action_instr(env_name:str, agent_id:int, params:dict = {}) -> str:
     agent_name = get_agent_name(agent_id, params)
     profile = f"You are {agent_name}. " if params["agent_num"] > 1 else ""
     image_explain = get_image_explain(agent_id, params)
@@ -144,7 +146,7 @@ def get_action_instr(env_name:str, agent_id:int, params = {}):
     return prompt
 
 # メッセージを生成する時のプロンプトに記述する指示文を返す
-def get_message_instr(agent_id:int, targets:str, params={}):
+def get_message_instr(agent_id:int, targets:str, params:dict={}) -> str:
     targets_str = " and ".join(targets)
     agent_name = get_agent_name(agent_id, params)
     
@@ -160,7 +162,7 @@ def get_message_instr(agent_id:int, targets:str, params={}):
     return prompt
 
 # メッセージを生成する時のプロンプトに記述する指示文を返す
-def get_conversation_instr(agent_id:int, targets:str, messages, is_last:bool, params={}):
+def get_conversation_instr(agent_id:int, targets:str, messages:list[tuple[str,str]], is_last:bool, params:dict={}) -> str:
     targets_str = " and ".join(targets)
     agent_name = get_agent_name(agent_id, params)
     actions_str = get_actions_joined_str(params["env_name"], "or")
@@ -181,23 +183,13 @@ def get_conversation_instr(agent_id:int, targets:str, messages, is_last:bool, pa
     prompt += f"\n{agent_name}:"
     return prompt
 
-# 思考を生成する時のプロンプトに記述する指示文を返す
-def get_consideration_instr(agent_id:int, achieved:list[str], not_achieved:list[str], params = {}):
+# Chain of Thoughtでの出力を生成する時のプロンプトに記述する指示文を返す
+def get_consideration_instr(agent_id:int, achieved:list[str], not_achieved:list[str], params:dict = {}) -> str:
     agent_name = get_agent_name(agent_id, params)
     image_explain = get_image_explain(agent_id, params)
     sentences = []
     if params["agent_num"] > 1: sentences.append(f"You are {agent_name}.")
     if len(image_explain) > 0: sentences.append(image_explain)                        
-    # if len(not_achieved) + len(achieved) > 1:# サブゴールを使う手法の場合はプロンプトに追加
-    #     if len(achieved) > 1:
-    #         sentences.append(f"In previous steps, you achieved subgoals {achieved} in order.")
-    #     sentences.append(f"You think you should achieve subgoals {not_achieved}.")
-    #     if len(not_achieved) > 1:
-    #         sentences.append(f"Output abstract plan, what you think would achieve the subgoals, especially '{not_achieved[0]}' for achieving '{not_achieved[1]}', in the current situation in 2 to 3 sentences, briefly.")
-    #     else:
-    #         sentences.append(f"Output abstract plan, what you think would achieve the subgoals, especially '{not_achieved[0]}', in the current situation in 2 to 3 sentences, briefly.")
-    # else:
-    #     sentences.append(f"Output abstract plan, what you think would accomplish the task in the current situation in 2 to 3 sentences.")
     sentences.append(f"Output abstract plan, what you think would accomplish the task in the current situation in 2 to 3 sentences, briefly.")
 
     prompt = " ".join(sentences)
@@ -205,7 +197,7 @@ def get_consideration_instr(agent_id:int, achieved:list[str], not_achieved:list[
     return prompt
 
 # サブゴールを生成する時のプロンプトに記述する指示文を返す
-def get_subgoal_instr(agent_id:int, achieved:list[str], not_achieved:list[str], params = {}):
+def get_subgoal_instr(agent_id:int, achieved:list[str], not_achieved:list[str], params:dict = {}) -> str:
     agent_name = get_agent_name(agent_id, params)
     image_explain = get_image_explain(agent_id, params)
     next = not_achieved[0]
@@ -226,18 +218,14 @@ def get_subgoal_instr(agent_id:int, achieved:list[str], not_achieved:list[str], 
     sentences.append(f"Don't output same meaning subgoal and subgoal that is not able to be achieved.")
     sentences.append(f"Don't use relative expressions for example, 'move right', 'move east', 'go to left'.")
     sentences.append(f"Considering other subgoals that you should achieve, don't output wasteful subgoal.")
-    #sentences.append(f"If it is concrete enough, the output may be taken from in your actions.")
     sentences.append(f"If any of your actions {actions} can achieve '{next}', output the action name as a subgoal.")
-    sentences.append(f"Output very appropriate subgoal in a few words, only one subgoal.") #  to achieve your task as soon as possible
-
-    # sentences.append(f"Output only one subgoal for achieving {not_achieved[0]} in a few words, concretely.")
-    # sentences.append(f"Do not output same meaning subgoal and relative subgoal.")
+    sentences.append(f"Output very appropriate subgoal in a few words, only one subgoal.")
     prompt = " ".join(sentences)
     prompt += f"\nYour subgoal:"
     return prompt
 
 # サブゴールを行動に変換する時のプロンプトに記述する指示文を返す
-def get_subgoal_to_action_instr(env_name:str, agent_id:int, subgoals:list[str], params = {}):
+def get_subgoal_to_action_instr(env_name:str, agent_id:int, subgoals:list[str], params:dict = {}) -> str:
     agent_name = get_agent_name(agent_id, params)
     profile = f"You are {agent_name}. " if params["agent_num"] > 1 else ""
     image_explain = get_image_explain(agent_id, params)
@@ -246,7 +234,7 @@ def get_subgoal_to_action_instr(env_name:str, agent_id:int, subgoals:list[str], 
     return prompt
 
 # サブゴールを達成したか判定する時のプロンプトに記述する指示文を返す
-def get_subgoal_achieved_instr(env_name:str, agent_id:int, subgoals:list[str], params = {}):
+def get_subgoal_achieved_instr(env_name:str, agent_id:int, subgoals:list[str], params:dict = {}) -> str:
     agent_name = get_agent_name(agent_id, params)
     profile = f"You are {agent_name}. " if params["agent_num"] > 1 else ""
     image_explain = get_image_explain(agent_id, params)
@@ -254,31 +242,28 @@ def get_subgoal_achieved_instr(env_name:str, agent_id:int, subgoals:list[str], p
     prompt = profile + image_explain + f"In the previous step, you thought you should achieve {subgoals}. Is the subgoal '{subgoals[0]}' achieved? Output only 'Yes' or 'No'. Note that for subgoal such as 'go to A', you should output 'Yes' when your forward is coordinate A or there is A in your forward coordinate.\nYes or No:" #  by the previous your action も要るかと思ったがマルチエージェントを考慮して一旦消す
     return prompt
 
-def get_all_subgoals_achieved_instr(agent_id:int, subgoals:list[str], params = {}):
+# サブゴールを達成したか判定させるプロンプトの指示文を返す
+def get_all_subgoals_achieved_instr(agent_id:int, subgoals:list[str], params:dict = {}) -> str:
     agent_name = get_agent_name(agent_id, params)
     profile = f"You are {agent_name}. " if params["agent_num"] > 1 else ""
     image_explain = get_image_explain(agent_id, params)
     prompt = profile + image_explain + f"In the previous step, you thought you should achieve {subgoals}. Was each subgoal achieved? Output only the list of Yes or No, in the form of ['Yes', 'No', ...].\nlist:" #  by the previous your action も要るかと思ったがマルチエージェントを考慮して一旦消す
     return prompt
 
-def get_init_subgoal_instr(env:gym.Env, mission:str, agent_id:int, params:dict):
+# 最初のサブゴール列を生成するプロンプトの指示文を返す
+def get_init_subgoal_instr(env:gym.Env, mission:str, agent_id:int, params:dict) -> str:
     
     env_name = params["env_name"]
     if CLIFF in env_name:
         return ""
     elif BABY in env_name:
-        width = env.width
-        height = env.height
         actions_str = get_actions_joined_str(env_name, "or")
-        color = IDX_TO_COLOR[agent_id]
         obs = babyai_utils.world_to_str_baby(env, False, params)
-        #return f"You interact with an grid world environment to solve a task. Grid size is {width} x {height}. Position is represented by (Column, Row). The top-left most square is (0, 0). {obs} It is not possible to overlap objects. Your mission is '{mission}'. You are {color} triangle. Each step, you can act in {actions_str}. Output subgoal list to achieve your task in the format ['A', 'B', 'C', ...]. Output abstract but detail subgoals list. The last subgoal of the list is your mission. Output only result. \nsubgoal list:"
-        #return f"You interact with an grid world environment to solve a task. This image is environment. {obs} It is not possible to overlap objects. You cannot pick up any item if you have already item. Your mission is '{mission}'. You are red triangle. Each step, you can act in {actions_str}. Output subgoal list to achieve your task in the format ['A', 'B', 'C', 'D', ... '{mission}']. Output abstract but detail subgoals list. The last subgoal of the list is your mission. Output only result.\nsubgoal list:"
         return f"You interact with an grid world environment to solve a task. This image is environment. {obs} It is not possible to overlap objects. You cannot pick up any item if you have already item. Your mission is '{mission}'. You are red triangle. Each step, you can act in {actions_str}. Output subgoal list to achieve your task in the format ['A', 'B', 'C', 'D', ... '{mission}']. Output list of abstract subgoals with enough length, without action name so much appropriately. The last subgoal of the list is your mission. Output only result.\nsubgoal list:"
     return f""
 
 # 終了判定や状態の評価を返す
-def get_achievement_status(reward, done, step, params):
+def get_achievement_status(reward:int, done:bool, step:int, params:dict) -> tuple[bool,bool,str]:
     env_name = params["env_name"]
     max_step = params["max_step"]
     
@@ -307,20 +292,21 @@ def get_achievement_status(reward, done, step, params):
 
     return False, False, ""
 
-def get_imgs(env, params):
+# 現在のエージェントの視界の画像を取得
+def get_imgs(env:gym.Env, params:dict):
     is_use_vision = utils.get_value(params,"is_use_vision",False)
     imgs = env.render_masked() if is_use_vision else [None] * env.agent_num
     return imgs
 
 # 観測情報を文字列に変換する
-def obs_to_str(env, observation, params) -> list:
+def obs_to_str(env:gym.Env, observation, params:dict) -> list:
     env_name = params["env_name"]
     if CLIFF in env_name:
         return obs_to_str_cliff(observation)
     elif BABY in env_name:
         return babyai_utils.obs_to_str_baby(env, observation, params)
 
-# CliffWalkingの変換処理
+# CliffWalking環境の観測の変換処理
 def obs_to_str_cliff(obs:int) -> list[str]:
     object_name = ["Wall", "Nothing", "Cliff", "Goal"]
     field = [
@@ -348,7 +334,8 @@ def obs_to_str_cliff(obs:int) -> list[str]:
 
     return [f"{north} {south} {east} {west} {goal}"]
 
-def get_feedbacks(env, observations, actions:list[int], params:dict={}):
+# 全エージェントの行動のフィードバックをテキストで取得
+def get_feedbacks(env, observations, actions:list[int], params:dict={}) -> list[str]:
     env_name = params["env_name"]
     if CLIFF in env_name:
         return [""] * env.agent_num
@@ -356,7 +343,7 @@ def get_feedbacks(env, observations, actions:list[int], params:dict={}):
         return babyai_utils.get_feedbacks(env, observations, actions, params)
 
 # 文字列を行動IDに変換する
-def str_to_action(text:str, params):
+def str_to_action(text:str, params:dict) -> int:
     env_name = params["env_name"]
     text = text.lower()
     # 正式な行動名とマッチさせる
@@ -376,7 +363,7 @@ def str_to_action(text:str, params):
     return 0
       
 # 行動IDを文字列に変換する
-def action_to_str(action_idx:int, params):
+def action_to_str(action_idx:int, params:dict) -> str:
     env_name = params["env_name"]
     actions = get_actions_str(env_name)
     return actions[action_idx]

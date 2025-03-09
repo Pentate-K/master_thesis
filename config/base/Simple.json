@@ -1,5 +1,5 @@
 {
-    "policy_option":{
+    "hyperparam":{
         "policy_name" : "simple"
     }
 }
