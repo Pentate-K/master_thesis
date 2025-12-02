@@ -131,19 +131,30 @@ class Llama(LLM):
         super().__init__(model_name)
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        quantization_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16
-        )
+        
+        # 環境に応じて読み込み設定を切り替える
+        if torch.cuda.is_available():
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.bfloat16
+            )
 
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            quantization_config=quantization_config,
-            cache_dir=ENV.model_dir,
-            low_cpu_mem_usage=True
-        )
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                quantization_config=quantization_config,
+                cache_dir=ENV.model_dir,
+                low_cpu_mem_usage=True
+            )
+        else:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                torch_dtype=torch.bfloat16,
+                cache_dir=ENV.model_dir,
+                low_cpu_mem_usage=True,
+                device_map="auto"
+            )
 
         self.pipeline = transformers.pipeline(
             "text-generation",

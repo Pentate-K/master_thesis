@@ -262,6 +262,32 @@ def get_init_subgoal_instr(env:gym.Env, mission:str, agent_id:int, params:dict) 
         return f"You interact with an grid world environment to solve a task. This image is environment. {obs} It is not possible to overlap objects. You cannot pick up any item if you have already item. Your mission is '{mission}'. You are red triangle. Each step, you can act in {actions_str}. Output subgoal list to achieve your task in the format ['A', 'B', 'C', 'D', ... '{mission}']. Output list of abstract subgoals with enough length, without action name so much appropriately. The last subgoal of the list is your mission. Output only result.\nsubgoal list:"
     return f""
 
+# ToM推論のプロンプトの指示文を返す
+def get_tom_instr(env:gym.Env, agent_id:int, target_agent_id:int, params:dict) -> str:
+    env_name = params["env_name"]
+    agent_name = get_agent_name(agent_id, params)
+    target_name = get_agent_name(target_agent_id, params)
+    image_explain = get_image_explain(agent_id, params)
+    sentences = []
+    
+    # プロフィール
+    if params["agent_num"] > 1:
+        sentences.append(f"You are {agent_name}. ")
+    
+    # 画像情報（必須ではない）
+    if len(image_explain) > 0:
+        sentences.append(image_explain)
+    
+    # Tom推論の指示
+    # 履歴に基づいて相手の意図を推測させる
+    sentences.append(f"Based on the observation history, infer the current situation and intent of {target_name}.")
+    sentences.append(f"Predict what subgoal {target_name} is trying to achieve and what actionthey will take next")
+    sentences.append(f"Output the prediction briefly in 2 to 3 sentences")
+    
+    prompt = " ".join(sentences)
+    prompt += f"\n Prediction for {target_name}:"
+    return prompt
+
 # 終了判定や状態の評価を返す
 def get_achievement_status(reward:int, done:bool, step:int, params:dict) -> tuple[bool,bool,str]:
     env_name = params["env_name"]
