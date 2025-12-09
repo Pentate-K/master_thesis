@@ -1,0 +1,13 @@
+{
+    "extends": [
+        "base/General",
+        "base/Reflexion",
+        "base/Conversation",
+        "base/Llama3.1-8B"
+    ],
+    "hyperparam": {
+        "policy_name": "interval_conversation",
+        "communication_interval": 3,
+        "conversation_count": 3
+    }
+}

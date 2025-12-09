@@ -41,6 +41,17 @@ def conversation_policy(env:gym.Env, reflexion:Reflexion, info:dict, params:dict
     actions = act_by_llm(env, reflexion, info, params)
     return actions
 
+# エージェントがnステップに一度会話を行う方策
+def interval_conversation_policy(env:gym.Env, reflexion:Reflexion, info:dict, params:dict={}) -> list[int]:
+    interval = utils.get_value(params, "communication_interval", 1)
+    
+    if env.now_step % interval == 0:
+        conversation(env, reflexion, info, params)
+    consideration(env, reflexion, info, params)
+    actions = act_by_llm(env, reflexion, info, params)
+    
+    return actions
+
 # サブゴールを階層的に生成して行動を決定する方策
 def subgoal_policy(env:gym.Env, reflexion:Reflexion, info:dict, params:dict={}) -> list[int]:
     judge_subgoal_achievement(env, reflexion, info, False, params)
@@ -67,5 +78,6 @@ policies = {
     "conversation" : conversation_policy,
     "subgoal" : subgoal_policy,
     "simple_subgoal" : simple_subgoal_policy,
-    "random" : random_policy
+    "random" : random_policy,
+    "interval_conversation": interval_conversation_policy
 }

@@ -3,6 +3,8 @@
         "reflexion_memory_size" : 3,
         "reflexion_history_size" : 100,
         "reflexion_type" : "none",
+        "reflexion_mode": "individual",
+        "reflexion_discussion_rounds" : 4,
         "trial_count" : 100,
         "reflexion_history_labels" : ["observation", "message", "consideration", "feedback", "result"],
         "reflexion_history_labels_len" : {

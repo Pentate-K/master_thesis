@@ -12,6 +12,7 @@
             "consideration" : 2,
             "relative_observation" : 1
         },
-        "history_size" : 5
+        "history_size" : 5,
+        "tom_message_history_size" : 50
     }
 }

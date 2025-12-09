@@ -129,6 +129,23 @@ def get_subgoal_reflexion_instr(reason:str, agent_id:int, subgoal_tree:SubgoalTr
     prompt += " " + f"Do not summarize your environment, but rather think about the subgoal planning strategy to complete the task, considering subgoals that are useful and those that should be improved. Output a detailed new plan from the start of the task to its accomplishment in 3 to 6 sentences \nGive only your plan:"
     return prompt
 
+# グループ反省会でのまとめ用のし自分を返す
+def get_group_reflexion_summary_instr(chat_history: list, reason: str, params: dict = {}) -> str:
+    chat_str = ""
+    for name, text in chat_history:
+        chat_str += f"{name}: {text}\n"
+    
+    # プロンプトの構築
+    prompt = f"""
+    The team failed to compete the task because: {reason}.
+    Based on the following team discussion, summarize the final concrete strategy for the next episode.
+    
+    Discussion:
+    {chat_str}
+    
+    Output only the summary of the strategy in 3 to 6 sentences.
+    """
+
 # Subgoalに関するReflexionを行う時のプロンプトに記述する達成/未達成のサブゴールを返す
 def get_subgoal_reflexion_achievement(subgoal_tree:SubgoalTree, params:dict={}) -> str:
     achieved, failed = subgoal_tree.get_all_sequence()
@@ -190,7 +207,7 @@ def get_consideration_instr(agent_id:int, achieved:list[str], not_achieved:list[
     sentences = []
     if params["agent_num"] > 1: sentences.append(f"You are {agent_name}.")
     if len(image_explain) > 0: sentences.append(image_explain)                        
-    sentences.append(f"Output abstract plan, what you think would accomplish the task in the current situation in 2 to 3 sentences, briefly.")
+    sentences.append(f"Output abstract plan, what you think would accomplish the task in the current situation in 2 to 3 sentences, briefly. Please think step by step")
 
     prompt = " ".join(sentences)
     prompt += "\nYour think:"
@@ -279,13 +296,16 @@ def get_tom_instr(env:gym.Env, agent_id:int, target_agent_id:int, params:dict) -
         sentences.append(image_explain)
     
     # Tom推論の指示
-    # 履歴に基づいて相手の意図を推測させる
-    sentences.append(f"Based on the observation history, infer the current situation and intent of {target_name}.")
-    sentences.append(f"Predict what subgoal {target_name} is trying to achieve and what actionthey will take next")
-    sentences.append(f"Output the prediction briefly in 2 to 3 sentences")
-    
+    # 状況に応じた推論を指示
+    sentences.append(f"Infer the current situation and intent of {target_name}.")
+    sentences.append(f"If {target_name} is in your view, verify their action.")
+    # 【重要】見えない場合は会話を思い出すよう指示
+    sentences.append(f"If {target_name} is NOT in your view, infer their action based on the **past conversation/messages** and the agreed plan.")
+    sentences.append(f"Predict what subgoal {target_name} is trying to achieve and what action they will take next.")
+    sentences.append("Output the prediction briefly in 2 to 3 sentences.")
+
     prompt = " ".join(sentences)
-    prompt += f"\n Prediction for {target_name}:"
+    prompt += f"\nPrediction for {target_name}:"
     return prompt
 
 # 終了判定や状態の評価を返す
