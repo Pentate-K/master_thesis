@@ -45,8 +45,16 @@ def conversation_policy(env:gym.Env, reflexion:Reflexion, info:dict, params:dict
 def interval_conversation_policy(env:gym.Env, reflexion:Reflexion, info:dict, params:dict={}) -> list[int]:
     interval = utils.get_value(params, "communication_interval", 1)
     
+    # 通信形式の取得(デフォルトは "normal"=自然言語)
+    # "structured" を指定すると構造化通信を行う
+    conv_format = utils.get_value(params, "conversation_format", "normal")
+    
+    
     if env.now_step % interval == 0:
-        conversation(env, reflexion, info, params)
+        if conv_format == "structured":
+            structured_conversation(env, reflexion, info, params)
+        else:
+            conversation(env, reflexion, info, params)
     consideration(env, reflexion, info, params)
     actions = act_by_llm(env, reflexion, info, params)
     
@@ -76,6 +84,7 @@ policies = {
     "simple" : simple_policy,
     "message" : message_policy,
     "conversation" : conversation_policy,
+    "structured_conversation": structured_conversation,
     "subgoal" : subgoal_policy,
     "simple_subgoal" : simple_subgoal_policy,
     "random" : random_policy,

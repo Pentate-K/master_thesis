@@ -4,6 +4,8 @@ import utils.env_utils as env_utils
 from utils.llm_utils import LLM
 import utils.utils as utils
 from utils.embedding_utils import Embedder
+import json
+import re
 
 # 方策に関する細かい処理
 # policy.pyから呼び出される
@@ -231,6 +233,86 @@ def conversation(env:gym.Env, reflexion:Reflexion, pre_info:dict, params:dict={}
             for name, text in messages:
                 reflexion.add_message(id, name, text)
 
+    utils.dict_of_lists_extend(pre_info, info)
+
+# エージェント間の対話を構造化したJSON形式で行うための関数
+def extract_json(text: str):
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            pass
+    return None
+# 構造化された会話を行う関数
+def structured_conversation(env:gym.Env, reflexion:Reflexion, pre_info:dict, params:dict={}):
+    info = {
+        "queries":[],
+        "responses":[],
+        "messages":[],
+        "intents":[]
+    }
+    imgs = env_utils.get_imgs(env, params)
+    # 会話ペアごとにループ
+    for group in params["conversation_pairs"]:
+        messages = [] # (sender_name, json_string)
+        for i in range(params["conversation_count"]):
+            for j, agent_id in enumerate(group):
+                is_last = (i == params["conversation_count"] - 1) and (j == len(group) - 1)
+                
+                agent_name = env_utils.get_agent_name(agent_id, params)
+                targets_id = [tid for tid in group if tid != agent_id]
+                targets_str = [env_utils.get_agent_name(tid, params) for tid in targets_id]
+
+                # プロンプト取得
+                prompt = env_utils.get_structured_conversation_instr(agent_id, targets_str, messages, is_last, params)
+                
+                # 生成 (JSONを期待)
+                # LLM.generate は (text, score) または (text, info) を返すと想定
+                response_tuple = LLM.generate(prompt, imgs[agent_id])
+                if isinstance(response_tuple, tuple):
+                    raw_text = response_tuple[0]
+                else:
+                    raw_text = response_tuple # 古い実装の場合
+
+                # JSONパース
+                json_data = extract_json(raw_text)
+                
+                if json_data:
+                    # 成功: JSONを整形して文字列化
+                    json_str = json.dumps(json_data, indent=None) # 1行にする
+                    msg_content = json_data.get("message", "")
+                    intent = json_data.get("intent", "UNKNOWN")
+                    
+                    # 履歴用リストに追加
+                    messages.append((agent_name, json_str))
+                    
+                    # ログ保存
+                    info["messages"].append(msg_content)
+                    info["intents"].append(intent)
+                    
+                    # Reflexion(履歴)に追加
+                    # 人間が読むときは "intent: message" の形の方が見やすいかも
+                    display_text = f"[{intent}] {msg_content} (Plan: {json_data.get('action_plan')})"
+                    reflexion.add_message(agent_id, "SELF", display_text)
+                    for tid in targets_id:
+                        reflexion.add_message(tid, agent_name, display_text)
+                        
+                else:
+                    # 失敗: 生テキストをそのまま使うか、エラーとして扱う
+                    # ここではエラーログを出して生テキストを採用（フォールバック）
+                    print(f"[Warn] JSON Parse Failed: {raw_text}")
+                    messages.append((agent_name, raw_text))
+                    reflexion.add_message(agent_id, "SELF", raw_text)
+                    for tid in targets_id:
+                        reflexion.add_message(tid, agent_name, raw_text)
+
+                info["queries"].append(prompt)
+                info["responses"].append(raw_text)
     utils.dict_of_lists_extend(pre_info, info)
 
 # 各サブゴールを達成したかの判定を行う

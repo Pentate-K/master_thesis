@@ -308,6 +308,44 @@ def get_tom_instr(env:gym.Env, agent_id:int, target_agent_id:int, params:dict) -
     prompt += f"\nPrediction for {target_name}:"
     return prompt
 
+# 構造化通信（JSON形式）用の指示文を返す
+def get_structured_conversation_instr(agent_id: int, targets: list[str], chat_history: list, is_last: bool, params: dict) -> str:
+    agent_name = get_agent_name(agent_id, params)
+    targets_str = ", ".join(targets)
+    
+    # 履歴をフォーマット (JSON文字列として履歴を渡す)
+    history_text = ""
+    for name, msg in chat_history:
+        # msg は既にJSON文字列であることを想定、あるいはテキスト
+        history_text += f"{name}: {msg}\n"
+
+    # 終了間際なら合意を促す文言を追加
+    last_instruction = ""
+    if is_last:
+        last_instruction = "This is the last turn. You MUST reach a consensus and output 'AGREE' as intent."
+
+    prompt = f"""
+    You are {agent_name}. You are communicating with {targets_str} to solve the task.
+    
+    You MUST output your response in valid JSON format ONLY. Do not output any other text.
+    
+    Required JSON Schema:
+    {{
+        "intent": "Select one from [PROPOSE, INFORM, REQUEST, AGREE, REJECT]",
+        "target_object": "Object name (e.g., 'red key') or null",
+        "target_coordinate": [x, y] coordinates as a list of integers, or null",
+        "action_plan": "Brief description of your planned action",
+        "message": "A short natural language message to your partner"
+    }}
+    
+    Conversation History:
+    {history_text}
+    
+    {last_instruction}
+    Based on your observation and the history, decide your intent and generate a JSON response.
+    """
+    return prompt
+
 # 終了判定や状態の評価を返す
 def get_achievement_status(reward:int, done:bool, step:int, params:dict) -> tuple[bool,bool,str]:
     env_name = params["env_name"]

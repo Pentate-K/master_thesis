@@ -8,6 +8,7 @@
     "hyperparam": {
         "policy_name": "interval_conversation",
         "communication_interval": 3,
-        "conversation_count": 3
+        "conversation_count": 3,
+        "conversation_format": "structured"
     }
 }
